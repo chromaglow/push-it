@@ -4,6 +4,14 @@ All notable changes are listed here. This project follows [Semantic Versioning](
 
 ## [Unreleased]
 
+### Changed
+- New bundled clips (`push1.wav`, `push2.wav`).
+- The clip trimmer moved to its own project, [GitTrim](https://github.com/chromaglow/GitTrim). The README and troubleshooting guide link there, and `tools/` is gone.
+
+### Fixed
+- CI: PSScriptAnalyzer now runs correctly, and crashes in the test suites are reported as errors.
+- CI: the Windows installer test no longer fails after all checks pass (it inherited the last installer's deliberate error code), and its helper is renamed so PSScriptAnalyzer stops flagging it.
+
 ## [1.0.0] - 2026-11-03
 
 First public release. Replaces the earlier zip kit that was shared privately.
