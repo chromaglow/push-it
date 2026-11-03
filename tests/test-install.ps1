@@ -3,6 +3,13 @@
 #   powershell -ExecutionPolicy Bypass -File tests\test-install.ps1     (Windows PowerShell 5.1)
 #   pwsh -File tests\test-install.ps1                                   (PowerShell 7)
 $ErrorActionPreference = 'Stop'
+# If anything crashes, say exactly what and where (CI logs are only visible when signed in).
+trap {
+    $msg = "$($_.Exception.Message) (tests\test-install.ps1 line $($_.InvocationInfo.ScriptLineNumber))"
+    Write-Host "CRASH  $msg" -ForegroundColor Red
+    if ($env:GITHUB_ACTIONS) { Write-Output "::error title=Windows installer test crashed::$msg" }
+    exit 1
+}
 $repo = Split-Path $PSScriptRoot -Parent
 $shell = (Get-Process -Id $PID).Path
 $script:failed = 0; $script:passed = 0

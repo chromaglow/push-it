@@ -18,11 +18,15 @@ jobs:
       - name: PSScriptAnalyzer
         shell: pwsh
         run: |
+          trap { Write-Output "::error title=PSScriptAnalyzer step crashed::$_"; exit 1 }
           Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
-          $issues = Invoke-ScriptAnalyzer -Path scripts, tests -Recurse -Severity Error, Warning `
-            -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions, PSUseApprovedVerbs, PSUseDeclaredVarsMoreThanAssignments
+          # -Path takes one path, so analyze each folder separately.
           # Excluded on purpose: these are interactive console scripts (Write-Host, short helper names),
           # and lib.ps1 defines variables that the dot-sourcing scripts use.
+          $exclude = 'PSAvoidUsingWriteHost', 'PSUseShouldProcessForStateChangingFunctions', 'PSUseApprovedVerbs', 'PSUseDeclaredVarsMoreThanAssignments'
+          $issues = @(foreach ($dir in 'scripts', 'tests') {
+            Invoke-ScriptAnalyzer -Path $dir -Recurse -Severity Error, Warning -ExcludeRule $exclude
+          })
           $issues | Format-Table -AutoSize
           foreach ($i in $issues) {
             $file = Resolve-Path -Relative $i.ScriptPath
