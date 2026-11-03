@@ -19,7 +19,7 @@ function Check([string]$Name, [bool]$Ok) {
         if ($env:GITHUB_ACTIONS) { Write-Output "::error title=Windows installer test::$Name" }
     }
 }
-function Invoke-As([string]$Home_, [string]$Script, [string[]]$Extra = @()) {
+function Invoke-Installer([string]$Home_, [string]$Script, [string[]]$Extra = @()) {
     $old = $env:USERPROFILE, $env:HOME
     $env:USERPROFILE = $Home_; $env:HOME = $Home_; $env:PUSHIT_NO_SOUND = '1'
     try { & $shell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $repo "scripts\$Script") @Extra | Out-Host; return $LASTEXITCODE }
@@ -43,8 +43,8 @@ $settings = Join-Path $c 'settings.json'
 $sample = (Get-ChildItem (Join-Path $repo 'plugin\sounds') -Filter *.wav | Select-Object -First 1).FullName
 Copy-Item $sample (Join-Path $c 'push-it\legacy-custom.wav')
 
-Check 'install succeeds' ((Invoke-As $h 'install.ps1' @('-NoPrompt')) -eq 0)
-Check 'rerun succeeds' ((Invoke-As $h 'install.ps1' @('-NoPrompt')) -eq 0)
+Check 'install succeeds' ((Invoke-Installer $h 'install.ps1' @('-NoPrompt')) -eq 0)
+Check 'rerun succeeds' ((Invoke-Installer $h 'install.ps1' @('-NoPrompt')) -eq 0)
 $s = Get-Content $settings -Raw
 Check 'hook registered exactly once' (([regex]::Matches($s, 'push-it\.sh')).Count -eq 1)
 Check 'unrelated settings kept' ($s.Contains('keep-me') -and $s.Contains('other-hook'))
@@ -55,7 +55,7 @@ $rules = Get-Content (Join-Path $c 'CLAUDE.md') -Raw
 Check 'legacy CLAUDE.md block removed, rest kept' ((-not $rules.Contains('push-it:start')) -and $rules.Contains('My rules'))
 Check 'legacy custom clip migrated' (Test-Path (Join-Path $c 'push-it\sounds\legacy-custom.wav'))
 
-Check 'uninstall succeeds' ((Invoke-As $h 'uninstall.ps1') -eq 0)
+Check 'uninstall succeeds' ((Invoke-Installer $h 'uninstall.ps1') -eq 0)
 $s = Get-Content $settings -Raw
 Check 'uninstall removes the hook' (-not $s.Contains('push-it.sh'))
 Check 'uninstall keeps other hooks' ($s.Contains('other-hook'))
@@ -65,23 +65,24 @@ Check 'uninstall keeps custom sounds' (Test-Path (Join-Path $c 'push-it\sounds\l
 # clean install + uninstall leaves no trace
 $h2 = "$h-2"; $c2 = Join-Path $h2 '.claude'; New-Item -ItemType Directory -Force -Path $c2 | Out-Null
 '{"model":"x"}' | Set-Content -Path (Join-Path $c2 'settings.json')
-$null = Invoke-As $h2 'install.ps1' @('-NoPrompt'); $null = Invoke-As $h2 'uninstall.ps1'
+$null = Invoke-Installer $h2 'install.ps1' @('-NoPrompt'); $null = Invoke-Installer $h2 'uninstall.ps1'
 Check 'clean uninstall leaves no hooks object' (-not (Get-Content (Join-Path $c2 'settings.json') -Raw).Contains('"hooks"'))
 Check 'clean uninstall removes the user folder' (-not (Test-Path (Join-Path $c2 'push-it')))
 
 # never install over the plugin; a disabled plugin doesn't count
 '{"enabledPlugins":{"push-it@push-it":true}}' | Set-Content -Path (Join-Path $c2 'settings.json')
-$null = Invoke-As $h2 'install.ps1' @('-NoPrompt')
+$null = Invoke-Installer $h2 'install.ps1' @('-NoPrompt')
 Check 'installer refuses to double-install over the plugin' (-not (Test-Path (Join-Path $c2 'push-it')))
 '{"enabledPlugins":{"push-it@push-it":false}}' | Set-Content -Path (Join-Path $c2 'settings.json')
-$null = Invoke-As $h2 'install.ps1' @('-NoPrompt')
+$null = Invoke-Installer $h2 'install.ps1' @('-NoPrompt')
 Check 'a disabled plugin does not block the installer' ((Get-Content (Join-Path $c2 'settings.json') -Raw).Contains('push-it.sh'))
 
 # invalid settings.json: fail cleanly, leave it unchanged
 '{ "model": ' | Set-Content -Path (Join-Path $c2 'settings.json') -NoNewline
-Check 'invalid settings.json fails cleanly' ((Invoke-As $h2 'install.ps1' @('-NoPrompt')) -ne 0)
+Check 'invalid settings.json fails cleanly' ((Invoke-Installer $h2 'install.ps1' @('-NoPrompt')) -ne 0)
 Check 'invalid settings.json left unchanged' ((Get-Content (Join-Path $c2 'settings.json') -Raw) -eq '{ "model": ')
 
 Remove-Item -LiteralPath $h, $h2 -Recurse -Force
 Write-Host ''; Write-Host "passed: $script:passed  failed: $script:failed"
 if ($script:failed) { exit 1 }
+exit 0

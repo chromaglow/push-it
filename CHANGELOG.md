@@ -10,6 +10,7 @@ All notable changes are listed here. This project follows [Semantic Versioning](
 
 ### Fixed
 - CI: PSScriptAnalyzer now runs correctly, and crashes in the test suites are reported as errors.
+- CI: the Windows installer test no longer fails after all checks pass (it inherited the last installer's deliberate error code), and its helper is renamed so PSScriptAnalyzer stops flagging it.
 
 ## [1.0.0] - 2026-11-03
 
