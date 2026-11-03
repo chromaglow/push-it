@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck
+        run: shellcheck -x plugin/hooks/*.sh scripts/*.sh tests/*.sh install.command uninstall.command
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $issues = Invoke-ScriptAnalyzer -Path scripts, tests -Recurse -Severity Error, Warning `
+            -ExcludeRule PSAvoidUsingWriteHost, PSUseShouldProcessForStateChangingFunctions, PSUseApprovedVerbs, PSUseDeclaredVarsMoreThanAssignments
+          # Excluded on purpose: these are interactive console scripts (Write-Host, short helper names),
+          # and lib.ps1 defines variables that the dot-sourcing scripts use.
+          $issues | Format-Table -AutoSize
+          if ($issues) { exit 1 }
+      - name: JSON is valid
+        run: for f in .claude-plugin/*.json plugin/.claude-plugin/*.json plugin/hooks/hooks.json; do jq empty "$f"; done
+      - name: Plugin manifest validates
+        run: npx -y @anthropic-ai/claude-code@2.1.317 plugin validate . && npx -y @anthropic-ai/claude-code@2.1.317 plugin validate plugin
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hook and installer tests (bash)
+        shell: bash
+        run: bash tests/run.sh
+
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Installer round trip (Windows PowerShell 5.1)
+        shell: powershell
+        run: .\tests\test-install.ps1
+      - name: Installer round trip (PowerShell 7)
+        shell: pwsh
+        run: .\tests\test-install.ps1

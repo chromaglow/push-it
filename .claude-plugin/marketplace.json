@@ -1,0 +1,12 @@
+{
+  "name": "push-it",
+  "description": "The Push it plugin for Claude Code.",
+  "owner": { "name": "chromaglow", "url": "https://github.com/chromaglow" },
+  "plugins": [
+    {
+      "name": "push-it",
+      "source": "./plugin",
+      "description": "Type \"push it\": a clip plays, Claude says \"Push it real good.\" and pushes your branch."
+    }
+  ]
+}

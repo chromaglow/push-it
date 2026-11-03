@@ -1,0 +1,28 @@
+# Shared trigger cases for every hook implementation.
+# Format: <expected><TAB><prompt>   expected = fire | skip
+fire	push
+fire	push it
+fire	Push it.
+fire	PUSH IT!
+fire	push it real good
+fire	push to github
+fire	push two github
+fire	push to main
+fire	push my changes
+fire	push everything
+fire	push it please
+fire	  push   it
+skip	push back on that idea
+skip	pushing is fine
+skip	please push
+skip	can you push this to github for me
+skip	push the button on the left side of the screen now please
+skip	git push origin main
+skip
+skip	pushup count today
+skip	how do I push to a remote branch
+skip	push the meeting to friday
+skip	push the limits of this design
+skip	push my luck
+skip	push it to tomorrow
+skip	push it to the main branch on github now

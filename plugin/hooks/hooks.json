@@ -1,0 +1,16 @@
+{
+  "description": "Plays a clip and has Claude reply \"Push it real good.\" when your whole message is a push command.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/push-it.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

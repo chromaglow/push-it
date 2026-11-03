@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip Trimmer</title>
+<style>
+  :root{
+    --bg:#16130f; --plate:#2a2620; --plate2:#34302a; --ink:#efe6d2; --dim:#a89d86;
+    --amber:#ffb53d; --red:#e5483b; --sel:rgba(255,181,61,.18); --wave:#cfc3a8; --wavesel:#ffcf7a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);
+    font:15px/1.4 "Segoe UI",system-ui,sans-serif;display:flex;justify-content:center;padding:24px 16px}
+  .panel{width:100%;max-width:820px;background:linear-gradient(var(--plate2),var(--plate));
+    border-radius:14px;padding:22px;box-shadow:0 10px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.06)}
+  .tape{display:inline-block;background:#111;color:#f4f4f4;padding:4px 12px;border-radius:3px;
+    font:700 14px/1.2 Consolas,monospace;letter-spacing:.18em;text-transform:uppercase;
+    box-shadow:inset 0 -2px 0 rgba(255,255,255,.08)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .drop{margin-top:16px;border:2px dashed #5a5246;border-radius:10px;padding:26px;text-align:center;color:var(--dim);cursor:pointer}
+  .drop.over{border-color:var(--amber);color:var(--amber)}
+  canvas{display:block;width:100%;height:170px;background:#0f0d0a;border-radius:8px;margin-top:16px;cursor:crosshair;touch-action:none}
+  .readout{font:600 22px/1 Consolas,monospace;color:var(--amber);letter-spacing:.05em}
+  .lbl{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-top:16px}
+  .box{background:rgba(0,0,0,.22);border-radius:8px;padding:10px 12px}
+  button{font:600 14px "Segoe UI",sans-serif;border:0;border-radius:8px;padding:10px 16px;cursor:pointer;
+    background:#4a443a;color:var(--ink);box-shadow:0 2px 0 #1b1813}
+  button:hover{filter:brightness(1.15)} button:active{transform:translateY(1px);box-shadow:none}
+  button.go{background:var(--red);color:#fff} button.amber{background:var(--amber);color:#1b1408}
+  button:disabled{opacity:.4;cursor:default}
+  .nudge button{padding:6px 9px;font-size:12px}
+  input[type=number],input[type=text]{width:90px;background:#0f0d0a;color:var(--ink);border:1px solid #4a443a;border-radius:6px;padding:6px}
+  input[type=text]{width:180px}
+  .msg{margin-top:14px;min-height:22px;color:var(--dim)} .msg.ok{color:#8fd18b} .msg.err{color:#ff8a80}
+  .hidden{display:none}
+  .hint{font-size:12px;color:var(--dim);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="panel">
+  <div class="row" style="justify-content:space-between">
+    <span class="tape">Clip Trimmer</span>
+    <span class="lbl">target: <span id="target">push-it.wav</span></span>
+  </div>
+
+  <div id="drop" class="drop">Drop an audio or video file here, or click to choose.<br><span class="hint">mp3 · m4a · wav · ogg · mp4 · webm</span></div>
+  <input id="file" type="file" accept="audio/*,video/*" class="hidden">
+
+  <div id="editor" class="hidden">
+    <canvas id="wave"></canvas>
+    <div class="row" style="margin-top:8px">
+      <div class="hint" style="margin:0;flex:1">Drag the amber handles, or click and drag to draw a new selection. <b>Scroll over the clip to zoom</b> around your mouse; Shift+scroll pans. Space plays.</div>
+      <span class="lbl" id="zoomLbl">zoom 1×</span>
+      <button id="zSel" style="padding:6px 10px;font-size:12px">Zoom to selection</button>
+      <button id="zReset" style="padding:6px 10px;font-size:12px">Reset zoom</button>
+    </div>
+
+    <div class="grid">
+      <div class="box"><div class="lbl">Start</div><div class="readout" id="rStart">0.000</div>
+        <div class="row nudge" style="margin-top:6px"><button data-n="s,-0.1">−100</button><button data-n="s,-0.01">−10</button><button data-n="s,0.01">+10</button><button data-n="s,0.1">+100</button><span class="lbl">ms</span></div></div>
+      <div class="box"><div class="lbl">End</div><div class="readout" id="rEnd">0.000</div>
+        <div class="row nudge" style="margin-top:6px"><button data-n="e,-0.1">−100</button><button data-n="e,-0.01">−10</button><button data-n="e,0.01">+10</button><button data-n="e,0.1">+100</button><span class="lbl">ms</span></div></div>
+      <div class="box"><div class="lbl">Length</div><div class="readout" id="rLen">0.000</div><div class="hint" id="rTotal"></div></div>
+    </div>
+
+    <div class="grid">
+      <div class="box"><div class="lbl">Fade in (ms)</div><input id="fin" type="number" min="0" max="2000" value="15"></div>
+      <div class="box"><div class="lbl">Fade out (ms)</div><input id="fout" type="number" min="0" max="2000" value="120"></div>
+      <div class="box"><div class="lbl">Volume</div><label class="row"><input id="norm" type="checkbox" checked> Normalize to −1 dB</label></div>
+      <div class="box"><div class="lbl">File name</div><input id="fname" type="text" value="push-it.wav"></div>
+    </div>
+
+    <div class="row" style="margin-top:18px">
+      <button id="play" class="amber">▶ Play selection</button>
+      <label class="row"><input id="loop" type="checkbox"> Loop</label>
+      <button id="stop">■ Stop</button>
+      <span style="flex:1"></span>
+      <button id="export" class="go">Export WAV</button>
+    </div>
+    <div class="hint">Export asks where to save. Pick the folder you want. If your browser can't show a save box, the file goes to your Downloads folder.</div>
+  </div>
+  <div id="msg" class="msg"></div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const drop=$('drop'), fileIn=$('file'), editor=$('editor'), cv=$('wave'), msg=$('msg');
+  let ctx, buf=null, view={a:0,b:1}, sel={s:0,e:0}, src=null, playStart=0, playOff=0, raf=0, drag=null;
+
+  const say=(t,c='')=>{msg.textContent=t;msg.className='msg '+c};
+  const fmt=t=>t.toFixed(3);
+  const audio=()=>ctx||(ctx=new (window.AudioContext||window.webkitAudioContext)());
+
+  drop.onclick=()=>fileIn.click();
+  fileIn.onchange=e=>e.target.files[0]&&load(e.target.files[0]);
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over')}));
+  drop.addEventListener('drop',e=>e.dataTransfer.files[0]&&load(e.dataTransfer.files[0]));
+  window.addEventListener('dragover',e=>e.preventDefault());
+  window.addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer.files[0])load(e.dataTransfer.files[0])});
+
+  async function load(f){
+    stop(); say('Decoding '+f.name+'…');
+    try{
+      buf=await audio().decodeAudioData(await f.arrayBuffer());
+    }catch(err){say('Could not read that file as audio. Try an mp3, m4a or wav.','err');return}
+    sel={s:0,e:Math.min(buf.duration,2)}; view={a:0,b:buf.duration};
+    editor.classList.remove('hidden'); drop.firstChild.textContent='Loaded: '+f.name+' (drop another to replace)';
+    $('rTotal').textContent='clip is '+fmt(buf.duration)+' s';
+    draw(); readout(); say('Drag the handles around the bit you want. Scroll over the clip to zoom.');
+  }
+
+  function draw(playX){
+    const dpr=devicePixelRatio, W=cv.width=cv.clientWidth*dpr, H=cv.height=cv.clientHeight*dpr, g=cv.getContext('2d');
+    const span=view.b-view.a, x=t=>(t-view.a)/span*W, sx=x(sel.s), ex=x(sel.e), RUL=16*dpr, mid=RUL+(H-RUL)/2, amp=(H-RUL)/2;
+    g.fillStyle='#0f0d0a';g.fillRect(0,0,W,H);
+    g.fillStyle='rgba(255,181,61,.14)';g.fillRect(sx,RUL,ex-sx,H-RUL);
+    // waveform for the visible window, straight from the samples
+    const sr=buf.sampleRate, chs=[...Array(buf.numberOfChannels)].map((_,i)=>buf.getChannelData(i));
+    const cols=Math.floor(W), spc=span*sr/cols;
+    for(let c=0;c<cols;c++){
+      const i0=Math.floor((view.a*sr)+c*spc), i1=Math.max(i0+1,Math.floor((view.a*sr)+(c+1)*spc)), st=Math.max(1,Math.floor((i1-i0)/256));
+      let mn=1,mx=-1; for(let j=i0;j<i1&&j<buf.length;j+=st){for(const ch of chs){const v=ch[j];if(v<mn)mn=v;if(v>mx)mx=v}}
+      if(mx<mn)continue;
+      g.fillStyle=(c>=sx&&c<=ex)?'#ffcf7a':'#6e6656';
+      const a=mid-mx*amp, b=mid-mn*amp; g.fillRect(c,a,1,Math.max(1,b-a));
+    }
+    // time ruler
+    const steps=[0.001,0.002,0.005,0.01,0.02,0.05,0.1,0.2,0.5,1,2,5,10,15,30,60,120,300];
+    const tick=steps.find(s=>s/span*W>=70*dpr)||600, dec=tick<0.01?3:tick<0.1?2:tick<1?1:0;
+    g.fillStyle='#1d1a15';g.fillRect(0,0,W,RUL);
+    g.font=(10*dpr)+'px Consolas,monospace';g.textBaseline='middle';
+    for(let t=Math.ceil(view.a/tick)*tick;t<=view.b;t+=tick){const px=x(t);
+      g.fillStyle='#5a5246';g.fillRect(px,RUL-5*dpr,dpr,5*dpr);g.fillStyle='#a89d86';g.fillText(t.toFixed(dec)+'s',px+3*dpr,RUL/2)}
+    for(const hx of [sx,ex]){ if(hx<-10||hx>W+10)continue; g.fillStyle='#ffb53d';g.fillRect(hx-1*dpr,RUL,2*dpr,H-RUL);
+      g.beginPath();g.moveTo(hx-7*dpr,RUL);g.lineTo(hx+7*dpr,RUL);g.lineTo(hx,RUL+10*dpr);g.fill()}
+    if(playX!=null){g.fillStyle='#e5483b';g.fillRect(x(playX)-dpr,RUL,2*dpr,H-RUL)}
+    $('zoomLbl').textContent='zoom '+(buf.duration/span<10?(buf.duration/span).toFixed(1):Math.round(buf.duration/span))+'×';
+  }
+
+  function setView(a,b){ const d=buf.duration, minSpan=Math.min(d,0.02); let s=Math.max(minSpan,Math.min(d,b-a));
+    a=Math.max(0,Math.min(a,d-s)); view={a,b:a+s}; draw() }
+  cv.addEventListener('wheel',e=>{ if(!buf)return; e.preventDefault();
+    const span=view.b-view.a, pan=e.shiftKey?e.deltaY:e.deltaX;
+    if(Math.abs(pan)>Math.abs(e.shiftKey?0:e.deltaY)){ setView(view.a+pan/cv.clientWidth*span, view.b+pan/cv.clientWidth*span); return }
+    const t=tAt(e), f=Math.exp(e.deltaY*0.0015), ns=span*f, r=(t-view.a)/span;
+    setView(t-r*ns, t-r*ns+ns) },{passive:false});
+  $('zReset').onclick=()=>buf&&setView(0,buf.duration);
+  $('zSel').onclick=()=>{ if(!buf)return; const pad=(sel.e-sel.s)*0.15; setView(sel.s-pad, sel.e+pad) };
+
+  function readout(){ $('rStart').textContent=fmt(sel.s); $('rEnd').textContent=fmt(sel.e); $('rLen').textContent=fmt(sel.e-sel.s)+' s' }
+  function clamp(){ sel.s=Math.max(0,Math.min(sel.s,buf.duration)); sel.e=Math.max(0,Math.min(sel.e,buf.duration));
+    if(sel.e-sel.s<0.01){ if(drag==='s') sel.s=sel.e-0.01; else sel.e=sel.s+0.01 } sel.s=Math.max(0,sel.s); sel.e=Math.min(buf.duration,sel.e) }
+
+  const tAt=e=>{const r=cv.getBoundingClientRect();return view.a+Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*(view.b-view.a)};
+  cv.addEventListener('pointerdown',e=>{ if(!buf)return; cv.setPointerCapture(e.pointerId);
+    const t=tAt(e), tol=(view.b-view.a)*10/cv.clientWidth;
+    if(Math.abs(t-sel.s)<tol) drag='s'; else if(Math.abs(t-sel.e)<tol) drag='e'; else {drag='e';sel.s=t;sel.e=t+0.01}
+    clamp();draw();readout() });
+  cv.addEventListener('pointermove',e=>{ if(!buf)return; const t=tAt(e), tol=(view.b-view.a)*10/cv.clientWidth;
+    cv.style.cursor=(Math.abs(t-sel.s)<tol||Math.abs(t-sel.e)<tol)?'ew-resize':'crosshair';
+    if(!drag)return; sel[drag]=t; if(sel.s>sel.e){[sel.s,sel.e]=[sel.e,sel.s];drag=drag==='s'?'e':'s'} clamp();draw();readout() });
+  cv.addEventListener('pointerup',()=>{drag=null});
+  window.addEventListener('resize',()=>{if(buf)draw()});
+
+  document.querySelectorAll('[data-n]').forEach(b=>b.onclick=()=>{const [k,d]=b.dataset.n.split(',');drag=k;sel[k]+=parseFloat(d);clamp();drag=null;draw();readout()});
+
+  function render(){
+    const sr=buf.sampleRate, a=Math.floor(sel.s*sr), b=Math.floor(sel.e*sr), n=b-a, chN=buf.numberOfChannels;
+    const out=[...Array(chN)].map((_,c)=>buf.getChannelData(c).slice(a,b));
+    const fi=Math.min(n,Math.floor((+$('fin').value||0)/1000*sr)), fo=Math.min(n,Math.floor((+$('fout').value||0)/1000*sr));
+    let peak=0;
+    for(const d of out){ for(let i=0;i<fi;i++) d[i]*=i/fi; for(let i=0;i<fo;i++) d[n-1-i]*=i/fo; for(let i=0;i<n;i++){const v=Math.abs(d[i]);if(v>peak)peak=v} }
+    if($('norm').checked&&peak>0){const gain=Math.pow(10,-1/20)/peak; for(const d of out) for(let i=0;i<n;i++) d[i]*=gain}
+    return {out,sr,n,chN};
+  }
+
+  function play(){
+    if(!buf)return; stop(); const {out,sr,n,chN}=render();
+    const b=audio().createBuffer(chN,n,sr); out.forEach((d,c)=>b.copyToChannel(d,c));
+    src=ctx.createBufferSource(); src.buffer=b; src.loop=$('loop').checked; src.connect(ctx.destination);
+    src.onended=()=>{if(!src||!src.loop){cancelAnimationFrame(raf);draw()}};
+    playStart=ctx.currentTime; src.start();
+    const tick=()=>{ if(!src)return; let el=ctx.currentTime-playStart; const L=n/sr; if(src.loop) el%=L; if(el<=L){draw(sel.s+el);raf=requestAnimationFrame(tick)} }; tick();
+  }
+  function stop(){ if(src){try{src.onended=null;src.stop()}catch{} src=null} cancelAnimationFrame(raf); if(buf)draw() }
+  $('play').onclick=play; $('stop').onclick=stop;
+  window.addEventListener('keydown',e=>{ if(e.code==='Space'&&buf&&!/INPUT/.test(document.activeElement.tagName)){e.preventDefault(); src?stop():play()} });
+
+  function wav({out,sr,n,chN}){
+    const bytes=44+n*chN*2, v=new DataView(new ArrayBuffer(bytes)); let o=0;
+    const s=t=>{for(const ch of t)v.setUint8(o++,ch.charCodeAt(0))}, u32=x=>{v.setUint32(o,x,true);o+=4}, u16=x=>{v.setUint16(o,x,true);o+=2};
+    s('RIFF');u32(bytes-8);s('WAVE');s('fmt ');u32(16);u16(1);u16(chN);u32(sr);u32(sr*chN*2);u16(chN*2);u16(16);s('data');u32(n*chN*2);
+    for(let i=0;i<n;i++) for(let c=0;c<chN;c++){const x=Math.max(-1,Math.min(1,out[c][i]));v.setInt16(o,x<0?x*0x8000:x*0x7fff,true);o+=2}
+    return new Blob([v],{type:'audio/wav'});
+  }
+
+  $('fname').oninput=e=>$('target').textContent=e.target.value||'push-it.wav';
+  $('export').onclick=async()=>{
+    if(!buf)return; const blob=wav(render()); let name=($('fname').value||'push-it.wav').trim(); if(!/\.wav$/i.test(name))name+='.wav';
+    if(window.showSaveFilePicker){
+      try{ const h=await showSaveFilePicker({suggestedName:name,startIn:'documents',types:[{description:'WAV audio',accept:{'audio/wav':['.wav']}}]});
+        const w=await h.createWritable(); await w.write(blob); await w.close();
+        say('Saved '+h.name+' ('+fmt(sel.e-sel.s)+' s). Done.','ok'); return;
+      }catch(err){ if(err.name==='AbortError'){say('Save cancelled.');return} }
+    }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    say('Downloaded '+name+' to your Downloads folder. Move it wherever you need it.','ok');
+  };
+})();
+</script>
+</body>
+</html>

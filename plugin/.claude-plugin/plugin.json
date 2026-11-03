@@ -1,0 +1,11 @@
+{
+  "name": "push-it",
+  "displayName": "Push it",
+  "version": "1.0.0",
+  "description": "Type \"push it\" in Claude Code: a clip plays, Claude says \"Push it real good.\" and pushes your branch.",
+  "author": { "name": "Ezra Shively-Stjarna", "url": "https://github.com/chromaglow" },
+  "homepage": "https://github.com/chromaglow/push-it",
+  "repository": "https://github.com/chromaglow/push-it",
+  "license": "MIT",
+  "keywords": ["git", "push", "sound", "hooks", "fun"]
+}
