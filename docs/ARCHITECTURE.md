@@ -28,7 +28,6 @@ The hook never pushes anything itself. It only tells Claude what to do, so pushi
 | `plugin/config/push-it.conf` | Defaults. A user copy at `~/.claude/push-it/push-it.conf` overrides it. |
 | `plugin/sounds/` | Bundled clips. User clips in `~/.claude/push-it/sounds/` replace them. |
 | `scripts/` | Fallback installer and uninstaller for setups without plugins, plus their shared helpers. |
-| `tools/clip-trimmer.html` | Standalone browser tool for making a WAV clip. |
 | `tests/` | Shared trigger cases, the bash suite and the Windows installer test. |
 
 ## Design decisions
