@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: ShellCheck
         run: shellcheck -x plugin/hooks/*.sh scripts/*.sh tests/*.sh install.command uninstall.command
       - name: PSScriptAnalyzer
@@ -24,6 +24,10 @@ jobs:
           # Excluded on purpose: these are interactive console scripts (Write-Host, short helper names),
           # and lib.ps1 defines variables that the dot-sourcing scripts use.
           $issues | Format-Table -AutoSize
+          foreach ($i in $issues) {
+            $file = Resolve-Path -Relative $i.ScriptPath
+            Write-Output "::error file=$file,line=$($i.Line),title=$($i.RuleName)::$($i.Message)"
+          }
           if ($issues) { exit 1 }
       - name: JSON is valid
         run: for f in .claude-plugin/*.json plugin/.claude-plugin/*.json plugin/hooks/hooks.json; do jq empty "$f"; done
@@ -37,7 +41,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Hook and installer tests (bash)
         shell: bash
         run: bash tests/run.sh
@@ -45,7 +49,7 @@ jobs:
   windows-installer:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Installer round trip (Windows PowerShell 5.1)
         shell: powershell
         run: .\tests\test-install.ps1

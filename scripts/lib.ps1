@@ -40,7 +40,7 @@ function Test-PluginEnabled {
     (Test-Path $Settings) -and ((Read-Text $Settings) -match '"push-it@[^"]*"\s*:\s*true')
 }
 
-function Read-Settings {
+function Read-SettingsFile {
     if (-not (Test-Path $Settings)) { return [pscustomobject]@{} }
     $t = Read-Text $Settings
     if (-not $t.Trim()) { return [pscustomobject]@{} }
@@ -50,7 +50,7 @@ function Read-Settings {
 
 function Update-SettingsFile([ValidateSet('add', 'remove')][string]$Mode, [string]$Command) {
     New-Item -ItemType Directory -Force -Path $ClaudeDir | Out-Null
-    $s = Read-Settings
+    $s = Read-SettingsFile
     $hooks = if ($s.PSObject.Properties['hooks']) { $s.hooks } else { [pscustomobject]@{} }
     $groups = @()
     if ($hooks.PSObject.Properties['UserPromptSubmit']) {

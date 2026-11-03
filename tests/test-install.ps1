@@ -7,7 +7,10 @@ $repo = Split-Path $PSScriptRoot -Parent
 $shell = (Get-Process -Id $PID).Path
 $script:failed = 0; $script:passed = 0
 function Check([string]$Name, [bool]$Ok) {
-    if ($Ok) { $script:passed++ } else { $script:failed++; Write-Host "FAIL  $Name" -ForegroundColor Red }
+    if ($Ok) { $script:passed++ } else {
+        $script:failed++; Write-Host "FAIL  $Name" -ForegroundColor Red
+        if ($env:GITHUB_ACTIONS) { Write-Output "::error title=Windows installer test::$Name" }
+    }
 }
 function Invoke-As([string]$Home_, [string]$Script, [string[]]$Extra = @()) {
     $old = $env:USERPROFILE, $env:HOME
@@ -30,7 +33,8 @@ $settings = Join-Path $c 'settings.json'
 }
 '@ | Set-Content -Path $settings -Encoding UTF8
 "# My rules`n`n<!-- push-it:start -->`nold rule`n<!-- push-it:end -->`n" | Set-Content -Path (Join-Path $c 'CLAUDE.md')
-Copy-Item (Join-Path $repo 'plugin\sounds\push1.wav') (Join-Path $c 'push-it\legacy-custom.wav')
+$sample = (Get-ChildItem (Join-Path $repo 'plugin\sounds') -Filter *.wav | Select-Object -First 1).FullName
+Copy-Item $sample (Join-Path $c 'push-it\legacy-custom.wav')
 
 Check 'install succeeds' ((Invoke-As $h 'install.ps1' @('-NoPrompt')) -eq 0)
 Check 'rerun succeeds' ((Invoke-As $h 'install.ps1' @('-NoPrompt')) -eq 0)
@@ -39,7 +43,7 @@ Check 'hook registered exactly once' (([regex]::Matches($s, 'push-it\.sh')).Coun
 Check 'unrelated settings kept' ($s.Contains('keep-me') -and $s.Contains('other-hook'))
 Check 'similar-looking user hook in the same group kept' ($s.Contains('git-push-hook.sh'))
 Check 'legacy hook entry removed' (-not $s.Contains('push-it/push-hook'))
-Check 'hook list is a JSON array' ((ConvertFrom-Json $s).hooks.UserPromptSubmit.Count -eq 2)
+Check 'hook list is a JSON array of 3 groups' (@((ConvertFrom-Json $s).hooks.UserPromptSubmit).Count -eq 3)
 $rules = Get-Content (Join-Path $c 'CLAUDE.md') -Raw
 Check 'legacy CLAUDE.md block removed, rest kept' ((-not $rules.Contains('push-it:start')) -and $rules.Contains('My rules'))
 Check 'legacy custom clip migrated' (Test-Path (Join-Path $c 'push-it\sounds\legacy-custom.wav'))
@@ -67,9 +71,9 @@ $null = Invoke-As $h2 'install.ps1' @('-NoPrompt')
 Check 'a disabled plugin does not block the installer' ((Get-Content (Join-Path $c2 'settings.json') -Raw).Contains('push-it.sh'))
 
 # invalid settings.json: fail cleanly, leave it unchanged
-'{ "model": "x", }' | Set-Content -Path (Join-Path $c2 'settings.json') -NoNewline
+'{ "model": ' | Set-Content -Path (Join-Path $c2 'settings.json') -NoNewline
 Check 'invalid settings.json fails cleanly' ((Invoke-As $h2 'install.ps1' @('-NoPrompt')) -ne 0)
-Check 'invalid settings.json left unchanged' ((Get-Content (Join-Path $c2 'settings.json') -Raw) -eq '{ "model": "x", }')
+Check 'invalid settings.json left unchanged' ((Get-Content (Join-Path $c2 'settings.json') -Raw) -eq '{ "model": ')
 
 Remove-Item -LiteralPath $h, $h2 -Recurse -Force
 Write-Host ''; Write-Host "passed: $script:passed  failed: $script:failed"

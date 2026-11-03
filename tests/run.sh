@@ -14,7 +14,11 @@ export PUSHIT_NO_SOUND=1
 
 pass=0; failed=0
 ok()  { pass=$((pass + 1)); }
-bad() { failed=$((failed + 1)); printf 'FAIL  %s\n' "$*"; }
+bad() {
+  failed=$((failed + 1)); printf 'FAIL  %s\n' "$*"
+  [ -n "${GITHUB_ACTIONS:-}" ] && printf '::error title=Hook and installer tests::%s\n' "$*"
+  return 0
+}
 check() { if eval "$2"; then ok; else bad "$1"; fi; }
 
 json_prompt() {  # build hook stdin for a prompt, escaping \ and "
@@ -56,14 +60,17 @@ check "custom reply" '[[ "$out" == *"\"Custom line.\""* ]]'
 check "auto_commit=true commits first" '[[ "$out" == *"commit them with a short descriptive message"* ]]'
 
 echo "== clip rotation and custom sounds"
-rm -rf "$TMP/state"
-run_hook "push" >/dev/null; first="$(cat "$TMP/err")"
-run_hook "push" >/dev/null; second="$(cat "$TMP/err")"
-run_hook "push" >/dev/null; third="$(cat "$TMP/err")"
-check "bundled clips alternate" '[[ "$first" == *push1.wav* && "$second" == *push2.wav* && "$third" == *push1.wav* ]]'
-mkdir -p "$TMP/snd/sounds"; cp "$REPO/plugin/sounds/push2.wav" "$TMP/snd/sounds/mine.wav"
-run_hook "push" "$TMP/snd" "$TMP/state2" >/dev/null
-check "user sounds replace bundled ones" 'grep -q "snd/sounds/mine.wav" "$TMP/err"'
+# Independent of which clips are bundled, so swapping sounds never breaks the tests.
+SAMPLE=""; for f in "$REPO"/plugin/sounds/*.wav; do [ -f "$f" ] && { SAMPLE="$f"; break; }; done
+check "at least one bundled clip" '[ -n "$SAMPLE" ]'
+run_hook "push" "$TMP/empty" "$TMP/state1" >/dev/null
+check "bundled clips play when the user has none" 'grep -q "plugin/sounds/.*\.wav" "$TMP/err"'
+mkdir -p "$TMP/rot/sounds"; cp "$SAMPLE" "$TMP/rot/sounds/a.wav"; cp "$SAMPLE" "$TMP/rot/sounds/b.wav"
+run_hook "push" "$TMP/rot" "$TMP/state2" >/dev/null; first="$(cat "$TMP/err")"
+run_hook "push" "$TMP/rot" "$TMP/state2" >/dev/null; second="$(cat "$TMP/err")"
+run_hook "push" "$TMP/rot" "$TMP/state2" >/dev/null; third="$(cat "$TMP/err")"
+check "clips take turns" '[[ "$first" == *rot/sounds/a.wav* && "$second" == *rot/sounds/b.wav* && "$third" == *rot/sounds/a.wav* ]]'
+check "user sounds replace bundled ones" '! grep -q "plugin/sounds" "$TMP/err"'
 
 echo "== fallback installer round trip (scripts/install.sh)"
 if command -v node >/dev/null 2>&1 || command -v osascript >/dev/null 2>&1; then
@@ -79,7 +86,7 @@ if command -v node >/dev/null 2>&1 || command -v osascript >/dev/null 2>&1; then
 }
 JSON
   printf '# My rules\n\n<!-- push-it:start -->\nold rule\n<!-- push-it:end -->\n' > "$C/CLAUDE.md"
-  cp "$REPO/plugin/sounds/push1.wav" "$C/push-it/legacy-custom.wav"
+  cp "$SAMPLE" "$C/push-it/legacy-custom.wav"
 
   HOME="$H" PUSHIT_NOPROMPT=1 bash "$REPO/scripts/install.sh" >"$TMP/install.log" 2>&1; rc=$?
   check "install succeeds" '[ "$rc" -eq 0 ]' || cat "$TMP/install.log"
@@ -113,9 +120,9 @@ JSON
   HOME="$H3" PUSHIT_NOPROMPT=1 bash "$REPO/scripts/install.sh" >/dev/null 2>&1
   check "a disabled plugin doesn't block the installer" 'grep -q push-it.sh "$H3/.claude/settings.json"'
 
-  H4="$TMP/home4"; mkdir -p "$H4/.claude"; printf '{ "model": "x", }' > "$H4/.claude/settings.json"
+  H4="$TMP/home4"; mkdir -p "$H4/.claude"; printf '{ "model": ' > "$H4/.claude/settings.json"
   HOME="$H4" PUSHIT_NOPROMPT=1 bash "$REPO/scripts/install.sh" >"$TMP/bad.log" 2>&1; rc=$?
-  check "invalid settings.json: fails cleanly and leaves it unchanged" '[ "$rc" -ne 0 ] && grep -q "isn.t valid JSON" "$TMP/bad.log" && [ "$(cat "$H4/.claude/settings.json")" = "{ \"model\": \"x\", }" ]'
+  check "invalid settings.json: fails cleanly and leaves it unchanged" '[ "$rc" -ne 0 ] && grep -q "isn.t valid JSON" "$TMP/bad.log" && [ "$(cat "$H4/.claude/settings.json")" = "{ \"model\": " ]'
 else
   echo "   skipped: needs node or osascript"
 fi

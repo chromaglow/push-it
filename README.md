@@ -48,7 +48,7 @@ If Windows says "Windows protected your PC", click **More info → Run anyway**.
 
 When your **whole message** is a short, single-line push command, Push it:
 
-1. plays a clip (two original stings are included and take turns), then
+1. plays a clip (the bundled clips take turns, or use your own), then
 2. tells Claude to open its reply with **"Push it real good."** and push the current branch, setting the upstream if needed.
 
 By default it **only pushes**. If you have uncommitted changes, Claude tells you and offers to commit; it never commits on its own unless you turn on `auto_commit`.
@@ -109,4 +109,4 @@ Sounds must be WAV, since that's the one format every OS can play without extra 
 
 ## License
 
-[MIT](LICENSE) © Ezra Shively-Stjarna. The included sounds are original and covered by the same license.
+[MIT](LICENSE) © Ezra Shively-Stjarna. The bundled sounds and their source are listed in [plugin/sounds/README.md](plugin/sounds/README.md).
