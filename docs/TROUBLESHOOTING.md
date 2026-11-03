@@ -37,7 +37,7 @@ You have both the plugin and the fallback installer active. Remove one: `/plugin
 
 ## My custom sound doesn't play
 
-It must be a `.wav` file in `~/.claude/push-it/sounds/`. MP3 and M4A files are ignored. [GitTrim](https://github.com/chromaglow/GitTrim) converts any audio or video file to WAV in your browser.
+It must be a `.wav` file in `~/.claude/push-it/sounds/`. MP3 and M4A files are ignored. [GitTrim](https://chromaglow.github.io/GitTrim/) converts any audio or video file to WAV in your browser.
 
 ## settings.json "isn't valid JSON"
 

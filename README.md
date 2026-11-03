@@ -68,7 +68,7 @@ The folder is `C:\Users\<you>\.claude\push-it` on Windows and `~/.claude/push-it
 | Want to… | Do this |
 | --- | --- |
 | Use your own sound | Put one or more `.wav` files in `~/.claude/push-it/sounds/`. They take turns. |
-| Cut a clip from a song or video | Use [GitTrim](https://github.com/chromaglow/GitTrim), a free in-browser trimmer that exports WAV. Nothing is uploaded. |
+| Cut a clip from a song or video | Open [GitTrim](https://chromaglow.github.io/GitTrim/), a free in-browser trimmer that exports WAV. Nothing is uploaded. ([Source](https://github.com/chromaglow/GitTrim)) |
 | Change the line Claude says | Copy [`plugin/config/push-it.conf`](plugin/config/push-it.conf) to `~/.claude/push-it/push-it.conf` and edit `reply=`. |
 | Let it commit before pushing | In that same file, set `auto_commit=true`. |
 | Change which phrases fire | Edit `allowed_words=` and `max_words=` in that file. |
