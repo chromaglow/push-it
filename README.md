@@ -105,7 +105,7 @@ Sounds must be WAV, since that's the one format every OS can play without extra 
 
 - [How it works and why it's built this way](docs/ARCHITECTURE.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Origin](ORIGIN.md)
 
 ## License
 
